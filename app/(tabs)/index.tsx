@@ -55,11 +55,11 @@ const Index = () => {
               onPress={() => {
                 router.push('/search')
               }}
-              placeholder="Search for a movie"
+              placeholder="Search for an anime"
             />
 
             <Text className="text-lg text-white font-bold mt-10 mb-3">
-              Popular Movies
+              Popular Anime
             </Text>
 
             <FlatList

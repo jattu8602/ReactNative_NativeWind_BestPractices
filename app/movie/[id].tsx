@@ -1,54 +1,29 @@
 import { LinearGradient } from 'expo-linear-gradient'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useState } from 'react'
 import {
   ActivityIndicator,
   Image,
   Linking,
+  Modal,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { WebView } from 'react-native-webview'
 
 import { icons } from '@/constants/icons'
 import { fetchMovieDetails } from '@/services/api'
 import useFetch from '@/services/usefetch'
 
-interface MovieInfoProps {
-  label: string
-  value?: string | number | null
-}
-
-const MovieInfo = ({ label, value }: MovieInfoProps) => (
-  <View className="flex-col items-start justify-center mt-4">
-    <Text className="text-light-300 font-normal text-sm mb-1">{label}</Text>
-    <Text className="text-light-100 font-semibold text-base leading-5">
-      {value || 'N/A'}
-    </Text>
-  </View>
-)
-
-const Section = ({
-  title,
-  children,
-}: {
-  title: string
-  children: React.ReactNode
-}) => (
-  <View className="mt-6">
-    <Text className="text-white font-bold text-xl mb-3 tracking-wide">
-      {title}
-    </Text>
-    <View className="bg-dark-200/70 rounded-2xl p-4 shadow-md shadow-black/40">
-      {children}
-    </View>
-  </View>
-)
-
 const Details = () => {
   const router = useRouter()
   const { id } = useLocalSearchParams()
+  const { height, width } = useWindowDimensions()
+  const [showVideoModal, setShowVideoModal] = useState(false)
 
   const { data: movie, loading } = useFetch(() =>
     fetchMovieDetails(id as string)
@@ -63,10 +38,51 @@ const Details = () => {
       </SafeAreaView>
     )
 
-  // Calculate IMDb rating from vote_average (stored as 0-20 scale, convert to 0-10)
-  const imdbRating = movie?.vote_average
-    ? (movie.vote_average / 2).toFixed(1)
+  // Calculate MAL score from vote_average (stored as 0-20 scale, convert to 0-10)
+  const malScore = movie?.vote_average
+    ? (movie.vote_average / 2).toFixed(2)
     : null
+
+  // Format numbers for display
+  const formatNumber = (num: number | null | undefined): string => {
+    if (!num) return '0'
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M+`
+    if (num >= 1000) return `${(num / 1000).toFixed(0)}K+`
+    return num.toString()
+  }
+
+  // Extract YouTube video ID from embed URL
+  const getYouTubeVideoId = (
+    embedUrl: string | null | undefined
+  ): string | null => {
+    if (!embedUrl) return null
+    // Try multiple patterns to extract video ID
+    const patterns = [
+      /[?&]v=([^&]+)/,
+      /embed\/([^?&]+)/,
+      /youtu\.be\/([^?&]+)/,
+      /youtube\.com\/watch\?v=([^&]+)/,
+    ]
+    for (const pattern of patterns) {
+      const match = embedUrl.match(pattern)
+      if (match) return match[1]
+    }
+    return null
+  }
+
+  const youtubeId =
+    movie?.trailer?.youtube_id ||
+    getYouTubeVideoId(movie?.trailer?.embed_url || null)
+
+  // Build proper YouTube embed URL with all required parameters
+  const getYouTubeEmbedUrl = (videoId: string | null): string | null => {
+    if (!videoId) return null
+    return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(
+      'https://localhost'
+    )}`
+  }
+
+  const youtubeEmbedUrl = getYouTubeEmbedUrl(youtubeId)
 
   return (
     <View className="bg-primary flex-1">
@@ -74,33 +90,34 @@ const Details = () => {
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Poster Header */}
-        <View className="relative">
+        {/* Large Header Image with Overlay Content */}
+        <View className="relative" style={{ height: height * 0.5 }}>
           <Image
             source={{
               uri:
+                movie?.backdrop_path ||
                 movie?.poster_path ||
                 'https://placehold.co/600x400/1a1a1a/FFFFFF.png',
             }}
-            className="w-full h-[520px]"
+            className="w-full h-full"
             resizeMode="cover"
           />
 
-          {/* Overlay gradient */}
+          {/* Gradient Overlay */}
           <LinearGradient
-            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']}
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
             style={{
               position: 'absolute',
               bottom: 0,
               left: 0,
               right: 0,
-              height: 200,
+              height: '60%',
             }}
           />
 
-          {/* Back button */}
+          {/* Back Button */}
           <TouchableOpacity
-            className="absolute top-14 left-5 bg-black/60 rounded-full p-3"
+            className="absolute top-14 left-5 bg-black/60 rounded-full p-3 z-10"
             onPress={router.back}
           >
             <Image
@@ -110,156 +127,300 @@ const Details = () => {
             />
           </TouchableOpacity>
 
-          {/* IMDb Rating Badge */}
-          {imdbRating && (
-            <View className="absolute bottom-6 left-5 bg-yellow-400/90 px-3 py-2 rounded-full shadow">
-              <Text className="text-black font-bold text-base">
-                ⭐ {imdbRating}/10 IMDb
+          {/* TV Badge */}
+          {movie?.type && (
+            <View className="absolute top-14 right-5 bg-white/90 px-3 py-1 rounded z-10">
+              <Text className="text-black text-xs font-bold">{movie.type}</Text>
+            </View>
+          )}
+
+          {/* Title and Info Overlay */}
+          <View className="absolute bottom-0 left-0 right-0 p-5">
+            <Text className="text-white text-4xl font-bold mb-2 tracking-wide">
+              {movie?.title}
+            </Text>
+            {movie?.original_title && movie.original_title !== movie?.title && (
+              <Text className="text-light-200 text-lg mb-4">
+                {movie.original_title}
+              </Text>
+            )}
+
+            {/* Statistics Badges - Two Rows */}
+            <View className="flex-row flex-wrap gap-2 mb-2">
+              {malScore && (
+                <View className="bg-blue-500/90 px-4 py-2.5 rounded-lg">
+                  <Text className="text-white font-bold text-sm">
+                    {malScore} | {formatNumber(movie?.vote_count)} Ratings
+                  </Text>
+                </View>
+              )}
+              {movie?.favorites && (
+                <View className="bg-pink-500/90 px-4 py-2.5 rounded-lg">
+                  <Text className="text-white font-bold text-sm">
+                    {formatNumber(movie.favorites)} Favorites
+                  </Text>
+                </View>
+              )}
+              {movie?.rank && (
+                <View className="bg-yellow-500/90 px-4 py-2.5 rounded-lg">
+                  <Text className="text-white font-bold text-sm">
+                    Rank #{movie.rank}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <View className="flex-row flex-wrap gap-2">
+              {movie?.popularity && (
+                <View className="bg-teal-500/90 px-4 py-2.5 rounded-lg">
+                  <Text className="text-white font-bold text-sm">
+                    Popularity #{movie.popularity}
+                  </Text>
+                </View>
+              )}
+              {movie?.members && (
+                <View className="bg-gray-600/90 px-4 py-2.5 rounded-lg">
+                  <Text className="text-white font-bold text-sm">
+                    {formatNumber(movie.members)} Watch Lists
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* Main Content */}
+        <View className="px-5 pt-6">
+          {/* Synopsis Section */}
+          {movie?.overview && (
+            <View className="mb-6">
+              <Text className="text-white text-lg font-bold mb-3">
+                Synopsis
+              </Text>
+              <Text className="text-light-200 text-base leading-6">
+                {movie.overview}
               </Text>
             </View>
           )}
-        </View>
 
-        {/* Content */}
-        <View className="px-5 pt-4">
-          {/* Title */}
-          <Text className="text-white text-3xl font-bold mb-2 tracking-wide">
-            {movie?.title}
-          </Text>
-
-          {/* Sub Info */}
-          <View className="flex-row flex-wrap items-center gap-x-3 mb-2">
-            {movie?.release_date && (
-              <Text className="text-light-300">
-                {movie.release_date.split('-')[0]}
-              </Text>
-            )}
-            {movie?.runtime && (
-              <>
-                <Text className="text-light-300">•</Text>
-                <Text className="text-light-300">{movie.runtime}m</Text>
-              </>
-            )}
-            {movie?.rated && (
-              <>
-                <Text className="text-light-300">•</Text>
-                <View className="bg-accent/20 px-2 py-0.5 rounded">
-                  <Text className="text-accent text-xs font-semibold">
+          {/* Info Section */}
+          <View className="mb-6">
+            <Text className="text-white text-lg font-bold mb-3">Info</Text>
+            <View className="bg-dark-200/70 rounded-2xl p-4">
+              {movie?.status && (
+                <View className="flex-row py-2 border-b border-dark-300">
+                  <Text className="text-light-300 text-sm w-24">Status:</Text>
+                  <Text className="text-white text-sm font-semibold flex-1">
+                    {movie.status}
+                  </Text>
+                </View>
+              )}
+              {movie?.source && (
+                <View className="flex-row py-2 border-b border-dark-300">
+                  <Text className="text-light-300 text-sm w-24">Source:</Text>
+                  <Text className="text-white text-sm font-semibold flex-1">
+                    {movie.source}
+                  </Text>
+                </View>
+              )}
+              {movie?.episodes && (
+                <View className="flex-row py-2 border-b border-dark-300">
+                  <Text className="text-light-300 text-sm w-24">Episodes:</Text>
+                  <Text className="text-white text-sm font-semibold flex-1">
+                    {movie.episodes}
+                  </Text>
+                </View>
+              )}
+              {movie?.runtime && (
+                <View className="flex-row py-2 border-b border-dark-300">
+                  <Text className="text-light-300 text-sm w-24">Duration:</Text>
+                  <Text className="text-white text-sm font-semibold flex-1">
+                    {movie.runtime} min per ep
+                  </Text>
+                </View>
+              )}
+              {movie?.rated && (
+                <View className="flex-row py-2 border-b border-dark-300">
+                  <Text className="text-light-300 text-sm w-24">Rating:</Text>
+                  <Text className="text-white text-sm font-semibold flex-1">
                     {movie.rated}
                   </Text>
                 </View>
-              </>
-            )}
+              )}
+              {movie?.season && movie?.year && (
+                <View className="flex-row py-2 border-b border-dark-300">
+                  <Text className="text-light-300 text-sm w-24">Season:</Text>
+                  <Text className="text-white text-sm font-semibold flex-1 capitalize">
+                    {movie.season} {movie.year}
+                  </Text>
+                </View>
+              )}
+              {movie?.aired && (
+                <View className="flex-row py-2 border-b border-dark-300">
+                  <Text className="text-light-300 text-sm w-24">Aired:</Text>
+                  <Text className="text-white text-sm font-semibold flex-1">
+                    {movie.aired}
+                  </Text>
+                </View>
+              )}
+              {movie?.broadcast && (
+                <View className="flex-row py-2">
+                  <Text className="text-light-300 text-sm w-24">
+                    Broadcast:
+                  </Text>
+                  <Text className="text-white text-sm font-semibold flex-1">
+                    {movie.broadcast}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
 
           {/* Genre Tags */}
           {movie?.genres && movie.genres.length > 0 && (
-            <View className="flex-row flex-wrap gap-2 mb-4">
-              {movie.genres.map((genre, idx) => (
-                <View
-                  key={idx}
-                  className="bg-accent/20 px-3 py-1.5 rounded-full"
-                >
-                  <Text className="text-accent text-sm font-medium">
-                    {genre.name}
-                  </Text>
-                </View>
-              ))}
+            <View className="mb-6">
+              <Text className="text-white text-lg font-bold mb-3">Genre</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {movie.genres.map((genre, idx) => (
+                  <View
+                    key={idx}
+                    className="bg-accent/20 px-4 py-2 rounded-full"
+                  >
+                    <Text className="text-accent text-sm font-medium">
+                      {genre.name}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </View>
           )}
 
-          {/* Plot Section */}
-          {movie?.overview && (
-            <Section title="Plot">
-              <Text className="text-light-100 text-base leading-6">
-                {movie.overview}
-              </Text>
-            </Section>
-          )}
-
-          {/* Cast & Crew */}
-          {(movie?.director || movie?.writer || movie?.actors) && (
-            <Section title="Cast & Crew">
-              {movie.director && (
-                <MovieInfo label="Director" value={movie.director} />
-              )}
-              {movie.writer && (
-                <MovieInfo label="Writer" value={movie.writer} />
-              )}
-              {movie.actors && (
-                <MovieInfo label="Actors" value={movie.actors} />
-              )}
-            </Section>
-          )}
-
-          {/* Technical Info */}
-          {(movie?.language || movie?.country || movie?.dvd) && (
-            <Section title="Technical Info">
-              {movie.language && (
-                <MovieInfo label="Language" value={movie.language} />
-              )}
-              {movie.country && (
-                <MovieInfo label="Country" value={movie.country} />
-              )}
-              {movie.dvd && <MovieInfo label="DVD Release" value={movie.dvd} />}
-            </Section>
-          )}
-
-          {/* Awards */}
-          {movie?.awards && (
-            <Section title="Awards">
-              <Text className="text-light-100 text-base leading-6 italic">
-                🏆 {movie.awards}
-              </Text>
-            </Section>
-          )}
-
-          {/* Box Office */}
-          {movie?.boxOffice && (
-            <Section title="Box Office">
-              <Text className="text-green-400 font-bold text-2xl">
-                {movie.boxOffice}
-              </Text>
-            </Section>
-          )}
-
-          {/* Production */}
-          {movie?.production && (
-            <Section title="Production">
-              <Text className="text-light-100 text-base">
-                {movie.production}
-              </Text>
-            </Section>
-          )}
-
-          {/* Website */}
+          {/* External Links */}
           {movie?.website && (
-            <Section title="Official Website">
-              <TouchableOpacity onPress={() => Linking.openURL(movie.website!)}>
-                <Text className="text-accent underline text-base font-semibold">
-                  {movie.website}
-                </Text>
-              </TouchableOpacity>
-            </Section>
+            <View className="mb-6">
+              <Text className="text-white text-lg font-bold mb-3">
+                External
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                <TouchableOpacity
+                  className="bg-blue-500/80 px-4 py-2 rounded-lg"
+                  onPress={() => Linking.openURL(movie.website!)}
+                >
+                  <Text className="text-white text-sm font-semibold">
+                    Official Site
+                  </Text>
+                </TouchableOpacity>
+                {movie?.homepage && (
+                  <TouchableOpacity
+                    className="bg-blue-500/80 px-4 py-2 rounded-lg"
+                    onPress={() => Linking.openURL(movie.homepage!)}
+                  >
+                    <Text className="text-white text-sm font-semibold">
+                      MyAnimeList
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
           )}
 
-          {/* Ratings Section */}
-          {movie?.ratings && movie.ratings.length > 0 && (
-            <Section title="All Ratings">
-              {movie.ratings.map((rating, idx) => (
-                <View
-                  key={idx}
-                  className="flex-row justify-between items-center py-2 border-b border-dark-300 last:border-0"
+          {/* YouTube Video Embed */}
+          {youtubeId && (
+            <View className="mb-6">
+              <Text className="text-white text-lg font-bold mb-3">Trailer</Text>
+              <View className="bg-dark-200/70 rounded-2xl overflow-hidden">
+                {/* Video Thumbnail with Play Button */}
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => setShowVideoModal(true)}
+                  className="relative"
                 >
-                  <Text className="text-light-200 text-sm">
-                    {rating.Source}
-                  </Text>
-                  <Text className="text-white font-bold text-sm">
-                    {rating.Value}
-                  </Text>
-                </View>
-              ))}
-            </Section>
+                  {/* YouTube Thumbnail */}
+                  <Image
+                    source={{
+                      uri: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
+                    }}
+                    className="w-full h-[220px]"
+                    resizeMode="cover"
+                    onError={() => {
+                      // Fallback to lower quality thumbnail
+                    }}
+                  />
+
+                  {/* Gradient Overlay */}
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.5)']}
+                    className="absolute inset-0"
+                  />
+
+                  {/* Play Button Overlay */}
+                  <View className="absolute inset-0 items-center justify-center">
+                    <View className="bg-red-600 rounded-full w-20 h-20 items-center justify-center shadow-lg shadow-black/50">
+                      <View
+                        style={{
+                          width: 0,
+                          height: 0,
+                          backgroundColor: 'transparent',
+                          borderStyle: 'solid',
+                          borderLeftWidth: 16,
+                          borderRightWidth: 0,
+                          borderTopWidth: 10,
+                          borderBottomWidth: 10,
+                          borderLeftColor: '#fff',
+                          marginLeft: 4,
+                        }}
+                      />
+                    </View>
+                  </View>
+
+                  {/* YouTube Logo Badge */}
+                  <View className="absolute bottom-3 right-3 bg-black/70 px-2 py-1 rounded">
+                    <Text className="text-white text-xs font-bold">
+                      YouTube
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Related Content */}
+          {movie?.relations && movie.relations.length > 0 && (
+            <View className="mb-6">
+              <Text className="text-white text-lg font-bold mb-3">Related</Text>
+              <View className="gap-3">
+                {movie.relations.map((relation, relationIdx) =>
+                  relation.entry.map((entry, entryIdx) => (
+                    <TouchableOpacity
+                      key={`${relationIdx}-${entryIdx}`}
+                      className="bg-dark-200/70 rounded-xl p-4"
+                      onPress={() => {
+                        if (entry.type === 'anime') {
+                          router.push(`/movie/${entry.mal_id}`)
+                        } else {
+                          Linking.openURL(entry.url)
+                        }
+                      }}
+                    >
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-1">
+                          <Text className="text-white font-semibold text-base mb-1">
+                            {entry.name}
+                          </Text>
+                          <Text className="text-light-300 text-xs">
+                            {relation.relation} ({entry.type})
+                          </Text>
+                        </View>
+                        <Image
+                          source={icons.arrow}
+                          className="size-4"
+                          tintColor="#fff"
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+            </View>
           )}
         </View>
       </ScrollView>
@@ -276,6 +437,80 @@ const Details = () => {
         />
         <Text className="text-white font-semibold text-base">Go Back</Text>
       </TouchableOpacity>
+
+      {/* Video Modal */}
+      {youtubeId && (
+        <Modal
+          visible={showVideoModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowVideoModal(false)}
+        >
+          <View className="flex-1 bg-black">
+            <SafeAreaView className="flex-1">
+              {/* Modal Header */}
+              <View className="flex-row items-center justify-between px-5 py-4 bg-black/90">
+                <Text className="text-white text-lg font-bold">Trailer</Text>
+                <TouchableOpacity
+                  onPress={() => setShowVideoModal(false)}
+                  className="bg-white/20 rounded-full p-2"
+                >
+                  <Text className="text-white text-lg font-bold">✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Video Player */}
+              <View className="flex-1 justify-center bg-black">
+                {youtubeEmbedUrl ? (
+                  <WebView
+                    source={{ uri: youtubeEmbedUrl }}
+                    style={{ flex: 1, backgroundColor: '#000' }}
+                    allowsFullscreenVideo={true}
+                    mediaPlaybackRequiresUserAction={false}
+                    javaScriptEnabled={true}
+                    domStorageEnabled={true}
+                    startInLoadingState={true}
+                    scalesPageToFit={true}
+                    userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"
+                    onError={(syntheticEvent) => {
+                      const { nativeEvent } = syntheticEvent
+                      console.warn('WebView error: ', nativeEvent)
+                    }}
+                    onHttpError={(syntheticEvent) => {
+                      const { nativeEvent } = syntheticEvent
+                      console.warn('HTTP error: ', nativeEvent)
+                    }}
+                    renderLoading={() => (
+                      <View className="absolute inset-0 items-center justify-center bg-black">
+                        <ActivityIndicator size="large" color="#fff" />
+                      </View>
+                    )}
+                  />
+                ) : (
+                  <View className="flex-1 items-center justify-center p-5">
+                    <Text className="text-white text-center mb-4">
+                      Unable to load video player
+                    </Text>
+                    <TouchableOpacity
+                      className="bg-red-600 px-6 py-3 rounded-lg"
+                      onPress={() => {
+                        setShowVideoModal(false)
+                        Linking.openURL(
+                          `https://www.youtube.com/watch?v=${youtubeId}`
+                        )
+                      }}
+                    >
+                      <Text className="text-white font-semibold">
+                        Watch on YouTube
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </SafeAreaView>
+          </View>
+        </Modal>
+      )}
     </View>
   )
 }

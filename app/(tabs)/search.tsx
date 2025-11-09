@@ -66,7 +66,7 @@ const Search = () => {
 
             <View className="my-5">
               <SearchBar
-                placeholder="Search for a movie"
+                placeholder="Search for an anime"
                 value={searchQuery}
                 onChangeText={handleSearch}
               />
@@ -102,8 +102,8 @@ const Search = () => {
             <View className="mt-10 px-5">
               <Text className="text-center text-gray-500">
                 {searchQuery.trim()
-                  ? 'No movies found'
-                  : 'Start typing to search for movies'}
+                  ? 'No anime found'
+                  : 'Start typing to search for anime'}
               </Text>
             </View>
           ) : null

@@ -1,82 +1,55 @@
-export const OMDB_CONFIG = {
-  BASE_URL: 'https://www.omdbapi.com',
-  API_KEY: process.env.EXPO_PUBLIC_MOVIE_API_KEY,
+// Jikan.moe API - No API key required!
+export const JIKAN_CONFIG = {
+  BASE_URL: 'https://api.jikan.moe/v4',
 }
 
-// Helper function to map OMDb search result to Movie interface
-const mapOMDbToMovie = (omdbMovie: any, index: number): Movie => {
-  // Extract year from Year field (format: "2023" or "2023–2024")
-  const year = omdbMovie.Year ? omdbMovie.Year.split('–')[0] : '2024'
-
-  // Convert IMDb ID (tt1234567) to numeric ID for compatibility
-  const numericId = omdbMovie.imdbID
-    ? parseInt(omdbMovie.imdbID.replace('tt', ''), 10) || index + 1000
-    : index + 1000
+// Helper function to map Jikan anime result to Movie interface (keeping name for compatibility)
+const mapJikanToAnime = (anime: any, index: number): Movie => {
+  const airedFrom = anime.aired?.from
+    ? new Date(anime.aired.from).toISOString().split('T')[0]
+    : '2024-01-01'
 
   return {
-    id: numericId,
-    title: omdbMovie.Title || '',
+    id: anime.mal_id || index + 1000,
+    title: anime.title || anime.title_english || '',
     adult: false,
-    backdrop_path: omdbMovie.Poster || '',
-    genre_ids: [],
-    original_language: 'en',
-    original_title: omdbMovie.Title || '',
-    overview: omdbMovie.Plot || '',
-    popularity: parseFloat(omdbMovie.imdbRating || '0'),
-    poster_path: omdbMovie.Poster || '',
-    release_date: `${year}-01-01`,
+    backdrop_path:
+      anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || '',
+    genre_ids: anime.genres?.map((g: any) => g.mal_id) || [],
+    original_language: 'ja',
+    original_title: anime.title_japanese || anime.title || '',
+    overview: anime.synopsis || '',
+    popularity: anime.popularity || 0,
+    poster_path: anime.images?.jpg?.image_url || '',
+    release_date: airedFrom,
     video: false,
-    vote_average: parseFloat(omdbMovie.imdbRating || '0') * 2, // Convert 0-10 to 0-20 scale
-    vote_count: parseInt(omdbMovie.imdbVotes?.replace(/,/g, '') || '0', 10),
+    vote_average: (anime.score || 0) * 2, // Convert 0-10 to 0-20 scale
+    vote_count: anime.scored_by || 0,
   }
 }
 
-// Helper function to get popular movies (using search with common terms)
-const getPopularMovies = async (): Promise<Movie[]> => {
-  const popularTerms = [
-    'action',
-    'comedy',
-    'drama',
-    'thriller',
-    'horror',
-    'sci-fi',
-  ]
-  const allMovies: Movie[] = []
+// Helper function to get popular anime
+const getPopularAnime = async (): Promise<Movie[]> => {
+  try {
+    const response = await fetch(`${JIKAN_CONFIG.BASE_URL}/top/anime?limit=20`)
 
-  // Fetch movies for each popular term
-  for (let i = 0; i < 2; i++) {
-    const term = popularTerms[Math.floor(Math.random() * popularTerms.length)]
-    try {
-      const response = await fetch(
-        `${OMDB_CONFIG.BASE_URL}/?apikey=${
-          OMDB_CONFIG.API_KEY
-        }&s=${encodeURIComponent(term)}&type=movie&page=1`
-      )
-      const data = await response.json()
-
-      if (data.Response === 'True' && data.Search) {
-        // Fetch details for each movie to get more info
-        const moviesWithDetails = await Promise.all(
-          data.Search.slice(0, 5).map(async (movie: any, idx: number) => {
-            try {
-              const detailResponse = await fetch(
-                `${OMDB_CONFIG.BASE_URL}/?apikey=${OMDB_CONFIG.API_KEY}&i=${movie.imdbID}`
-              )
-              const detailData = await detailResponse.json()
-              return mapOMDbToMovie(detailData, allMovies.length + idx)
-            } catch {
-              return mapOMDbToMovie(movie, allMovies.length + idx)
-            }
-          })
-        )
-        allMovies.push(...moviesWithDetails)
-      }
-    } catch (error) {
-      console.error(`Error fetching popular movies for term ${term}:`, error)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch anime: ${response.statusText}`)
     }
-  }
 
-  return allMovies.slice(0, 20) // Return up to 20 movies
+    const data = await response.json()
+
+    if (data.data && Array.isArray(data.data)) {
+      return data.data.map((anime: any, idx: number) =>
+        mapJikanToAnime(anime, idx)
+      )
+    }
+
+    return []
+  } catch (error) {
+    console.error('Error fetching popular anime:', error)
+    return []
+  }
 }
 
 export const fetchMovies = async ({
@@ -84,181 +57,159 @@ export const fetchMovies = async ({
 }: {
   query: string
 }): Promise<Movie[]> => {
-  if (!OMDB_CONFIG.API_KEY) {
-    throw new Error(
-      'OMDb API key is not configured. Please set EXPO_PUBLIC_MOVIE_API_KEY in your .env file'
-    )
-  }
-
   try {
     if (query) {
-      // Search for movies
+      // Search for anime
       const response = await fetch(
-        `${OMDB_CONFIG.BASE_URL}/?apikey=${
-          OMDB_CONFIG.API_KEY
-        }&s=${encodeURIComponent(query)}&type=movie&page=1`
+        `${JIKAN_CONFIG.BASE_URL}/anime?q=${encodeURIComponent(query)}&limit=20`
       )
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch movies: ${response.statusText}`)
+        throw new Error(`Failed to fetch anime: ${response.statusText}`)
       }
 
       const data = await response.json()
 
-      if (data.Response === 'False') {
-        return []
+      if (data.data && Array.isArray(data.data)) {
+        return data.data.map((anime: any, index: number) =>
+          mapJikanToAnime(anime, index)
+        )
       }
 
-      // Fetch details for each movie to get complete information
-      const moviesWithDetails = await Promise.all(
-        data.Search.map(async (movie: any, index: number) => {
-          try {
-            const detailResponse = await fetch(
-              `${OMDB_CONFIG.BASE_URL}/?apikey=${OMDB_CONFIG.API_KEY}&i=${movie.imdbID}`
-            )
-            const detailData = await detailResponse.json()
-            return mapOMDbToMovie(detailData, index)
-          } catch {
-            // Fallback to basic movie data if detail fetch fails
-            return mapOMDbToMovie(movie, index)
-          }
-        })
-      )
-
-      return moviesWithDetails
+      return []
     } else {
-      // Return popular movies when no query
-      return await getPopularMovies()
+      // Return popular anime when no query
+      return await getPopularAnime()
     }
   } catch (error) {
-    console.error('Error fetching movies:', error)
+    console.error('Error fetching anime:', error)
     throw error
   }
 }
 
 export const fetchMovieDetails = async (
-  movieId: string
+  animeId: string
 ): Promise<MovieDetails> => {
-  if (!OMDB_CONFIG.API_KEY) {
-    throw new Error(
-      'OMDb API key is not configured. Please set EXPO_PUBLIC_MOVIE_API_KEY in your .env file'
-    )
-  }
-
   try {
-    // OMDb uses imdbID format, but we might receive numeric ID
-    // Try both formats
-    const imdbId = movieId.startsWith('tt')
-      ? movieId
-      : `tt${movieId.padStart(7, '0')}`
-
     const response = await fetch(
-      `${OMDB_CONFIG.BASE_URL}/?apikey=${OMDB_CONFIG.API_KEY}&i=${imdbId}&plot=full`
+      `${JIKAN_CONFIG.BASE_URL}/anime/${animeId}/full`
     )
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch movie details: ${response.statusText}`)
+      throw new Error(`Failed to fetch anime details: ${response.statusText}`)
     }
 
     const data = await response.json()
+    const anime = data.data
 
-    if (data.Response === 'False') {
-      throw new Error(data.Error || 'Movie not found')
+    if (!anime) {
+      throw new Error('Anime not found')
     }
 
-    // Map OMDb response to MovieDetails interface
-    const year = data.Year ? data.Year.split('–')[0] : '2024'
-    const genres = data.Genre
-      ? data.Genre.split(', ').map((g: string, idx: number) => ({
-          id: idx,
-          name: g.trim(),
-        }))
-      : []
+    // Extract release date
+    const airedFrom = anime.aired?.from
+      ? new Date(anime.aired.from).toISOString().split('T')[0]
+      : '2024-01-01'
 
-    // Parse release date - OMDb provides "Released" field (e.g., "25 Dec 2009")
-    let releaseDate = `${year}-01-01`
-    if (data.Released && data.Released !== 'N/A') {
-      try {
-        const date = new Date(data.Released)
-        if (!isNaN(date.getTime())) {
-          releaseDate = date.toISOString().split('T')[0]
-        }
-      } catch {
-        // Keep default if parsing fails
-      }
-    }
+    // Map genres
+    const genres =
+      anime.genres?.map((g: any, idx: number) => ({
+        id: g.mal_id || idx,
+        name: g.name || '',
+      })) || []
+
+    // Map studios
+    const productionCompanies =
+      anime.studios?.map((studio: any, idx: number) => ({
+        id: studio.mal_id || idx,
+        logo_path: null,
+        name: studio.name || '',
+        origin_country: 'JP',
+      })) || []
+
+    // Map producers
+    const producers =
+      anime.producers?.map((producer: any, idx: number) => ({
+        id: producer.mal_id || idx,
+        logo_path: null,
+        name: producer.name || '',
+        origin_country: 'JP',
+      })) || []
+
+    // Combine studios and producers
+    const allProductionCompanies = [...productionCompanies, ...producers]
 
     return {
       adult: false,
-      backdrop_path: data.Poster || null,
+      backdrop_path:
+        anime.images?.jpg?.large_image_url ||
+        anime.images?.jpg?.image_url ||
+        null,
       belongs_to_collection: null,
       budget: 0,
       genres,
-      homepage: data.Website && data.Website !== 'N/A' ? data.Website : null,
-      id: parseInt(data.imdbID?.replace('tt', '') || '0', 10),
-      imdb_id: data.imdbID || null,
-      original_language: data.Language?.split(',')[0]?.trim() || 'en',
-      original_title: data.Title || '',
-      overview: data.Plot && data.Plot !== 'N/A' ? data.Plot : null,
-      popularity: parseFloat(data.imdbRating || '0'),
-      poster_path: data.Poster && data.Poster !== 'N/A' ? data.Poster : null,
-      production_companies:
-        data.Production && data.Production !== 'N/A'
-          ? data.Production.split(', ').map((name: string, idx: number) => ({
-              id: idx,
-              logo_path: null,
-              name: name.trim(),
-              origin_country: data.Country?.split(',')[0]?.trim() || '',
-            }))
-          : [],
-      production_countries:
-        data.Country && data.Country !== 'N/A'
-          ? data.Country.split(', ').map((name: string) => ({
-              iso_3166_1: '',
-              name: name.trim(),
-            }))
-          : [],
-      release_date: releaseDate,
+      homepage: anime.url || null,
+      id: anime.mal_id || 0,
+      imdb_id: null,
+      original_language: 'ja',
+      original_title: anime.title_japanese || anime.title || '',
+      overview: anime.synopsis || null,
+      popularity: anime.popularity || 0,
+      poster_path: anime.images?.jpg?.image_url || null,
+      production_companies: allProductionCompanies,
+      production_countries: [{ iso_3166_1: 'JP', name: 'Japan' }],
+      release_date: airedFrom,
       revenue: 0,
-      runtime:
-        data.Runtime && data.Runtime !== 'N/A'
-          ? parseInt(data.Runtime.replace(' min', ''))
-          : null,
-      spoken_languages:
-        data.Language && data.Language !== 'N/A'
-          ? data.Language.split(', ').map((name: string) => ({
-              english_name: name.trim(),
-              iso_639_1: '',
-              name: name.trim(),
-            }))
-          : [],
-      status: 'Released',
+      runtime: anime.duration
+        ? parseInt(anime.duration.replace(/[^0-9]/g, '')) || null
+        : null,
+      spoken_languages: [
+        { english_name: 'Japanese', iso_639_1: 'ja', name: 'Japanese' },
+      ],
+      status: anime.status || 'Unknown',
       tagline: null,
-      title: data.Title || '',
+      title: anime.title || anime.title_english || '',
       video: false,
-      vote_average: parseFloat(data.imdbRating || '0') * 2, // Convert 0-10 to 0-20 scale
-      vote_count: parseInt(data.imdbVotes?.replace(/,/g, '') || '0', 10),
-      // OMDb-specific fields
-      director: data.Director && data.Director !== 'N/A' ? data.Director : null,
-      writer: data.Writer && data.Writer !== 'N/A' ? data.Writer : null,
-      actors: data.Actors && data.Actors !== 'N/A' ? data.Actors : null,
-      awards: data.Awards && data.Awards !== 'N/A' ? data.Awards : null,
-      boxOffice:
-        data.BoxOffice && data.BoxOffice !== 'N/A' ? data.BoxOffice : null,
-      production:
-        data.Production && data.Production !== 'N/A' ? data.Production : null,
-      website: data.Website && data.Website !== 'N/A' ? data.Website : null,
-      rated: data.Rated && data.Rated !== 'N/A' ? data.Rated : null,
-      dvd: data.DVD && data.DVD !== 'N/A' ? data.DVD : null,
-      language: data.Language && data.Language !== 'N/A' ? data.Language : null,
-      country: data.Country && data.Country !== 'N/A' ? data.Country : null,
-      metascore:
-        data.Metascore && data.Metascore !== 'N/A' ? data.Metascore : null,
-      ratings:
-        data.Ratings && Array.isArray(data.Ratings) ? data.Ratings : undefined,
+      vote_average: (anime.score || 0) * 2, // Convert 0-10 to 0-20 scale
+      vote_count: anime.scored_by || 0,
+      // Anime-specific fields (mapped from Jikan)
+      director: null, // Jikan doesn't provide director in main response
+      writer: null,
+      actors: null,
+      awards: null,
+      boxOffice: null,
+      production: anime.studios?.map((s: any) => s.name).join(', ') || null,
+      website: anime.url || null,
+      rated: anime.rating || null,
+      dvd: null,
+      language: 'Japanese',
+      country: 'Japan',
+      metascore: null,
+      ratings: undefined,
+      // Additional anime-specific fields we can add
+      episodes: anime.episodes || null,
+      type: anime.type || null,
+      source: anime.source || null,
+      aired: anime.aired?.string || null,
+      season: anime.season || null,
+      year: anime.year || null,
+      broadcast: anime.broadcast?.string || null,
+      // Additional Jikan API fields
+      rank: anime.rank || null,
+      favorites: anime.favorites || null,
+      members: anime.members || null,
+      trailer: anime.trailer
+        ? {
+            youtube_id: anime.trailer.youtube_id || null,
+            url: anime.trailer.url || null,
+            embed_url: anime.trailer.embed_url || null,
+          }
+        : null,
+      relations: anime.relations || null,
+      external: null, // Jikan API doesn't provide external links in main response
     }
   } catch (error) {
-    console.error('Error fetching movie details:', error)
+    console.error('Error fetching anime details:', error)
     throw error
   }
 }

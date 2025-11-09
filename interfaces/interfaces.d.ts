@@ -86,6 +86,36 @@ interface MovieDetails {
     Source: string;
     Value: string;
   }>;
+  // Anime-specific fields (from Jikan API)
+  episodes?: number | null;
+  type?: string | null; // TV, Movie, OVA, etc.
+  source?: string | null; // Manga, Original, etc.
+  aired?: string | null; // Aired date string
+  season?: string | null; // spring, summer, fall, winter
+  year?: number | null;
+  broadcast?: string | null; // Broadcast schedule
+  // Additional Jikan API fields
+  rank?: number | null;
+  favorites?: number | null;
+  members?: number | null;
+  trailer?: {
+    youtube_id?: string | null;
+    url?: string | null;
+    embed_url?: string | null;
+  } | null;
+  relations?: Array<{
+    relation: string;
+    entry: Array<{
+      mal_id: number;
+      type: string;
+      name: string;
+      url: string;
+    }>;
+  }> | null;
+  external?: Array<{
+    name: string;
+    url: string;
+  }> | null;
 }
 
 interface TrendingCardProps {
