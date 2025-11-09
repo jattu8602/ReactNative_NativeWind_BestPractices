@@ -21,10 +21,15 @@ const Index = () => {
   const router = useRouter()
 
   const {
-    data: movies,
+    data: moviesData,
     loading: moviesLoading,
     error: moviesError,
-  } = useFetch(() => fetchMovies({ query: '' }))
+  } = useFetch(async () => {
+    const result = await fetchMovies({ query: '' })
+    return result.data
+  })
+
+  const movies = moviesData || []
 
   return (
     <View className="flex-1 bg-primary">

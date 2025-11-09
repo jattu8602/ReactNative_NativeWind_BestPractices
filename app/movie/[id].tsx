@@ -22,6 +22,66 @@ import { getGenreConfig } from '@/data/genres'
 import { fetchMovieDetails } from '@/services/api'
 import useFetch from '@/services/usefetch'
 
+// Component to fetch and display related item image
+const RelatedItemImage = ({ type, malId }: { type: string; malId: number }) => {
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (type === 'anime' || type === 'manga') {
+      fetch(`https://api.jikan.moe/v4/${type}/${malId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const imgUrl =
+            data.data?.images?.jpg?.image_url ||
+            data.data?.images?.jpg?.small_image_url ||
+            null
+          setImageUrl(imgUrl)
+        })
+        .catch(() => {
+          // Keep null for placeholder
+        })
+        .finally(() => {
+          setLoading(false)
+        })
+    } else {
+      setLoading(false)
+    }
+  }, [type, malId])
+
+  if (loading) {
+    return (
+      <View
+        className="rounded-lg mr-3 items-center justify-center"
+        style={{ width: 48, height: 64, backgroundColor: '#2a2a3a' }}
+      >
+        <ActivityIndicator size="small" color="#9CA4AB" />
+      </View>
+    )
+  }
+
+  if (imageUrl) {
+    return (
+      <Image
+        source={{ uri: imageUrl }}
+        style={{ width: 48, height: 64 }}
+        className="rounded-lg mr-3"
+        resizeMode="cover"
+      />
+    )
+  }
+
+  // Placeholder
+  return (
+    <View
+      className="rounded-lg mr-3 items-center justify-center"
+      style={{ width: 48, height: 64, backgroundColor: '#2a2a3a' }}
+    >
+      <Text className="text-accentText text-xs">📺</Text>
+    </View>
+  )
+}
+
 const Details = () => {
   const router = useRouter()
   const { id } = useLocalSearchParams()
@@ -442,35 +502,52 @@ const Details = () => {
               <Text className="text-white text-lg font-bold mb-3">Related</Text>
               <View className="gap-3">
                 {movie.relations.map((relation, relationIdx) =>
-                  relation.entry.map((entry, entryIdx) => (
-                    <TouchableOpacity
-                      key={`${relationIdx}-${entryIdx}`}
-                      className="bg-dark-200/70 rounded-xl p-4"
-                      onPress={() => {
-                        if (entry.type === 'anime') {
-                          router.push(`/movie/${entry.mal_id}`)
-                        } else {
-                          Linking.openURL(entry.url)
-                        }
-                      }}
-                    >
-                      <View className="flex-row items-center justify-between">
-                        <View className="flex-1">
-                          <Text className="text-white font-semibold text-base mb-1">
-                            {entry.name}
-                          </Text>
-                          <Text className="text-white text-xs">
-                            {relation.relation} ({entry.type})
-                          </Text>
-                        </View>
-                        <Image
-                          source={icons.arrow}
-                          className="size-4"
-                          tintColor="#fff"
-                        />
+                  relation.entry.map((entry, entryIdx) => {
+                    const isLastRelation =
+                      relationIdx === (movie.relations?.length || 0) - 1
+                    const isLastEntry = entryIdx === relation.entry.length - 1
+                    const isLastItem = isLastRelation && isLastEntry
+
+                    return (
+                      <View key={`${relationIdx}-${entryIdx}`}>
+                        <TouchableOpacity
+                          className="bg-dark-200/70 rounded-xl p-4"
+                          onPress={() => {
+                            if (entry.type === 'anime') {
+                              router.push(`/movie/${entry.mal_id}`)
+                            } else {
+                              Linking.openURL(entry.url)
+                            }
+                          }}
+                        >
+                          <View className="flex-row items-center justify-between">
+                            <View className="flex-row items-center flex-1">
+                              <RelatedItemImage
+                                type={entry.type}
+                                malId={entry.mal_id}
+                              />
+                              <View className="flex-1">
+                                <Text className="text-white font-semibold text-base mb-1">
+                                  {entry.name}
+                                </Text>
+                                <Text className="text-white text-xs">
+                                  {relation.relation} ({entry.type})
+                                </Text>
+                              </View>
+                            </View>
+                            <Image
+                              source={icons.arrow}
+                              className="size-4"
+                              tintColor="#fff"
+                            />
+                          </View>
+                        </TouchableOpacity>
+                        {!isLastItem && (
+                          <View className="h-px bg-white/10 mt-3" />
+                        )}
                       </View>
-                    </TouchableOpacity>
-                  ))
+                    )
+                  })
                 )}
               </View>
             </View>

@@ -110,6 +110,18 @@ interface MovieDetails {
       type: string;
       name: string;
       url: string;
+      images?: {
+        jpg?: {
+          image_url?: string;
+          small_image_url?: string;
+          large_image_url?: string;
+        };
+        webp?: {
+          image_url?: string;
+          small_image_url?: string;
+          large_image_url?: string;
+        };
+      };
     }>;
   }> | null;
   external?: Array<{
