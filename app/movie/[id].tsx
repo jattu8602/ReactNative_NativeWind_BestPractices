@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   Image,
+  ImageBackground,
   Linking,
   Modal,
   ScrollView,
@@ -16,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 
 import { icons } from '@/constants/icons'
+import { images } from '@/constants/images'
 import { getGenreConfig } from '@/data/genres'
 import { fetchMovieDetails } from '@/services/api'
 import useFetch from '@/services/usefetch'
@@ -394,15 +396,15 @@ const Details = () => {
                     }}
                   />
 
-                  {/* Gradient Overlay */}
-                  <LinearGradient
-                    colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.5)']}
-                    className="absolute inset-0"
-                  />
-
                   {/* Play Button Overlay */}
                   <View className="absolute inset-0 items-center justify-center">
-                    <View className="bg-red-600 rounded-full w-20 h-20 items-center justify-center shadow-lg shadow-black/50">
+                    <View
+                      className="bg-red-600 rounded-full w-20 h-20 items-center justify-center"
+                      style={{
+                        shadowColor: 'transparent',
+                        elevation: 0,
+                      }}
+                    >
                       <View
                         style={{
                           width: 0,
@@ -414,6 +416,9 @@ const Details = () => {
                           borderTopWidth: 10,
                           borderBottomWidth: 10,
                           borderLeftColor: '#fff',
+                          borderTopColor: 'transparent',
+                          borderBottomColor: 'transparent',
+                          borderRightColor: 'transparent',
                           marginLeft: 4,
                         }}
                       />
@@ -454,7 +459,7 @@ const Details = () => {
                           <Text className="text-white font-semibold text-base mb-1">
                             {entry.name}
                           </Text>
-                          <Text className="text-light-300 text-xs">
+                          <Text className="text-white text-xs">
                             {relation.relation} ({entry.type})
                           </Text>
                         </View>
@@ -475,15 +480,24 @@ const Details = () => {
 
       {/* Back Button */}
       <TouchableOpacity
-        className="absolute bottom-5 left-5 right-5 bg-accent rounded-lg py-4 flex flex-row items-center justify-center z-50 shadow-lg"
+        className="absolute bottom-1 self-center rounded-full px-6 py-3.5 flex flex-row items-center justify-center z-50 overflow-hidden"
         onPress={router.back}
+        activeOpacity={0.2}
       >
-        <Image
-          source={icons.arrow}
-          className="size-5 mr-2 rotate-180"
-          tintColor="#fff"
-        />
-        <Text className="text-white font-semibold text-base">Go Back</Text>
+        <ImageBackground
+          source={images.highlight}
+          className="flex flex-row items-center justify-center rounded-full px-5 py-3"
+          style={{ minWidth: 120 }}
+        >
+          <Image
+            source={icons.arrow}
+            className="size-5 mr-2 rotate-180"
+            tintColor="#151312"
+          />
+          <Text className="text-secondary font-semibold text-base">
+            Go Back
+          </Text>
+        </ImageBackground>
       </TouchableOpacity>
 
       {/* Video Modal */}
@@ -501,7 +515,7 @@ const Details = () => {
                 <Text className="text-white text-lg font-bold">Trailer</Text>
                 <TouchableOpacity
                   onPress={() => setShowVideoModal(false)}
-                  className="bg-white/20 rounded-full p-2"
+                  className="bg-white/20 rounded-full w-10 h-10 items-center justify-center"
                 >
                   <Text className="text-white text-lg font-bold">✕</Text>
                 </TouchableOpacity>
@@ -529,7 +543,7 @@ const Details = () => {
                       console.warn('HTTP error: ', nativeEvent)
                     }}
                     renderLoading={() => (
-                      <View className="absolute inset-0 items-center justify-center bg-black">
+                      <View className="absolute inset-0 items-center justify-center ">
                         <ActivityIndicator size="large" color="#fff" />
                       </View>
                     )}
