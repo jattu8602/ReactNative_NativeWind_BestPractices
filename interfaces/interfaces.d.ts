@@ -69,6 +69,23 @@ interface MovieDetails {
   video: boolean;
   vote_average: number;
   vote_count: number;
+  // OMDb-specific fields
+  director?: string | null;
+  writer?: string | null;
+  actors?: string | null;
+  awards?: string | null;
+  boxOffice?: string | null;
+  production?: string | null;
+  website?: string | null;
+  rated?: string | null;
+  dvd?: string | null;
+  language?: string | null;
+  country?: string | null;
+  metascore?: string | null;
+  ratings?: Array<{
+    Source: string;
+    Value: string;
+  }>;
 }
 
 interface TrendingCardProps {
