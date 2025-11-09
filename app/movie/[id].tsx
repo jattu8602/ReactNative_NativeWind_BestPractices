@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   Image,
@@ -24,10 +24,35 @@ const Details = () => {
   const { id } = useLocalSearchParams()
   const { height, width } = useWindowDimensions()
   const [showVideoModal, setShowVideoModal] = useState(false)
+  const [imageHeight, setImageHeight] = useState<number | null>(null)
 
   const { data: movie, loading } = useFetch(() =>
     fetchMovieDetails(id as string)
   )
+
+  // Calculate image height based on aspect ratio
+  useEffect(() => {
+    if (movie) {
+      const imageUri =
+        movie?.backdrop_path ||
+        movie?.poster_path ||
+        'https://placehold.co/600x400/1a1a1a/FFFFFF.png'
+
+      Image.getSize(
+        imageUri,
+        (imgWidth, imgHeight) => {
+          // Calculate height based on screen width and image aspect ratio
+          const aspectRatio = imgHeight / imgWidth
+          const calculatedHeight = width * aspectRatio
+          setImageHeight(calculatedHeight)
+        },
+        () => {
+          // Fallback to 16:9 aspect ratio if image fails to load
+          setImageHeight(width * (9 / 16))
+        }
+      )
+    }
+  }, [movie, width])
 
   if (loading)
     return (
@@ -91,7 +116,12 @@ const Details = () => {
         showsVerticalScrollIndicator={false}
       >
         {/* Large Header Image with Overlay Content */}
-        <View className="relative" style={{ height: height * 0.5 }}>
+        <View
+          className="relative"
+          style={{
+            height: imageHeight || width * (9 / 16), // Fallback to 16:9 if not loaded yet
+          }}
+        >
           <Image
             source={{
               uri:
@@ -114,33 +144,23 @@ const Details = () => {
               height: '60%',
             }}
           />
-
-          {/* Back Button */}
-          <TouchableOpacity
-            className="absolute top-14 left-5 bg-black/60 rounded-full p-3 z-10"
-            onPress={router.back}
-          >
-            <Image
-              source={icons.arrow}
-              className="size-5 rotate-180"
-              tintColor="#fff"
-            />
-          </TouchableOpacity>
-
           {/* TV Badge */}
           {movie?.type && (
             <View className="absolute top-14 right-5 bg-white/90 px-3 py-1 rounded z-10">
               <Text className="text-black text-xs font-bold">{movie.type}</Text>
             </View>
           )}
+        </View>
 
+        {/* Main Content */}
+        <View className="px-5 pt-6">
           {/* Title and Info Overlay */}
-          <View className="absolute bottom-0 left-0 right-0 p-5">
+          <View className="">
             <Text className="text-white text-4xl font-bold mb-2 tracking-wide">
               {movie?.title}
             </Text>
             {movie?.original_title && movie.original_title !== movie?.title && (
-              <Text className="text-light-200 text-lg mb-4">
+              <Text className="text-white text-lg mb-4">
                 {movie.original_title}
               </Text>
             )}
@@ -186,19 +206,14 @@ const Details = () => {
               )}
             </View>
           </View>
-        </View>
 
-        {/* Main Content */}
-        <View className="px-5 pt-6">
           {/* Synopsis Section */}
           {movie?.overview && (
-            <View className="mb-6">
+            <View className="mb-6 mt-6">
               <Text className="text-white text-lg font-bold mb-3">
                 Synopsis
               </Text>
-              <Text className="text-light-200 text-base leading-6">
-                {movie.overview}
-              </Text>
+              <Text className="text-white leading-6">{movie.overview}</Text>
             </View>
           )}
 
