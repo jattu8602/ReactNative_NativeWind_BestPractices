@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 
 import { icons } from '@/constants/icons'
+import { getGenreConfig } from '@/data/genres'
 import { fetchMovieDetails } from '@/services/api'
 import useFetch from '@/services/usefetch'
 
@@ -153,9 +154,9 @@ const Details = () => {
         </View>
 
         {/* Main Content */}
-        <View className="px-5 pt-6">
+        <View className="px-5 pt-6 ">
           {/* Title and Info Overlay */}
-          <View className="">
+          <View className="mb-6">
             <Text className="text-white text-4xl font-bold mb-2 tracking-wide">
               {movie?.title}
             </Text>
@@ -209,7 +210,7 @@ const Details = () => {
 
           {/* Synopsis Section */}
           {movie?.overview && (
-            <View className="mb-6 mt-6">
+            <View className="mb-6 ">
               <Text className="text-white text-lg font-bold mb-3">
                 Synopsis
               </Text>
@@ -220,68 +221,96 @@ const Details = () => {
           {/* Info Section */}
           <View className="mb-6">
             <Text className="text-white text-lg font-bold mb-3">Info</Text>
-            <View className="bg-dark-200/70 rounded-2xl p-4">
+            <View className="bg-dark-200/70 rounded-2xl py-4">
               {movie?.status && (
-                <View className="flex-row py-2 border-b border-dark-300">
-                  <Text className="text-light-300 text-sm w-24">Status:</Text>
+                <View className="flex-row items-center py-2 border-b border-gray-700/50">
+                  <View className="bg-blue-500/90 px-4 py-2 rounded-lg mr-3">
+                    <Text className="text-white text-sm font-bold">
+                      Status:
+                    </Text>
+                  </View>
                   <Text className="text-white text-sm font-semibold flex-1">
                     {movie.status}
                   </Text>
                 </View>
               )}
               {movie?.source && (
-                <View className="flex-row py-2 border-b border-dark-300">
-                  <Text className="text-light-300 text-sm w-24">Source:</Text>
+                <View className="flex-row items-center py-2 border-b border-gray-700/50">
+                  <View className="bg-purple-500/90 px-4 py-2 rounded-lg mr-3">
+                    <Text className="text-white text-sm font-bold">
+                      Source:
+                    </Text>
+                  </View>
                   <Text className="text-white text-sm font-semibold flex-1">
                     {movie.source}
                   </Text>
                 </View>
               )}
               {movie?.episodes && (
-                <View className="flex-row py-2 border-b border-dark-300">
-                  <Text className="text-light-300 text-sm w-24">Episodes:</Text>
+                <View className="flex-row items-center py-2 border-b border-gray-700/50">
+                  <View className="bg-green-500/90 px-4 py-2 rounded-lg mr-3">
+                    <Text className="text-white text-sm font-bold">
+                      Episodes:
+                    </Text>
+                  </View>
                   <Text className="text-white text-sm font-semibold flex-1">
                     {movie.episodes}
                   </Text>
                 </View>
               )}
               {movie?.runtime && (
-                <View className="flex-row py-2 border-b border-dark-300">
-                  <Text className="text-light-300 text-sm w-24">Duration:</Text>
+                <View className="flex-row items-center py-2 border-b border-gray-700/50">
+                  <View className="bg-orange-500/90 px-4 py-2 rounded-lg mr-3">
+                    <Text className="text-white text-sm font-bold">
+                      Duration:
+                    </Text>
+                  </View>
                   <Text className="text-white text-sm font-semibold flex-1">
                     {movie.runtime} min per ep
                   </Text>
                 </View>
               )}
               {movie?.rated && (
-                <View className="flex-row py-2 border-b border-dark-300">
-                  <Text className="text-light-300 text-sm w-24">Rating:</Text>
+                <View className="flex-row items-center py-2 border-b border-gray-700/50">
+                  <View className="bg-red-500/90 px-4 py-2 rounded-lg mr-3">
+                    <Text className="text-white text-sm font-bold">
+                      Rating:
+                    </Text>
+                  </View>
                   <Text className="text-white text-sm font-semibold flex-1">
                     {movie.rated}
                   </Text>
                 </View>
               )}
               {movie?.season && movie?.year && (
-                <View className="flex-row py-2 border-b border-dark-300">
-                  <Text className="text-light-300 text-sm w-24">Season:</Text>
+                <View className="flex-row items-center py-2 border-b border-gray-700/50">
+                  <View className="bg-cyan-500/90 px-4 py-2 rounded-lg mr-3">
+                    <Text className="text-white text-sm font-bold">
+                      Season:
+                    </Text>
+                  </View>
                   <Text className="text-white text-sm font-semibold flex-1 capitalize">
                     {movie.season} {movie.year}
                   </Text>
                 </View>
               )}
               {movie?.aired && (
-                <View className="flex-row py-2 border-b border-dark-300">
-                  <Text className="text-light-300 text-sm w-24">Aired:</Text>
+                <View className="flex-row items-center py-2 border-b border-gray-700/50">
+                  <View className="bg-pink-500/90 px-4 py-2 rounded-lg mr-3">
+                    <Text className="text-white text-sm font-bold">Aired:</Text>
+                  </View>
                   <Text className="text-white text-sm font-semibold flex-1">
                     {movie.aired}
                   </Text>
                 </View>
               )}
               {movie?.broadcast && (
-                <View className="flex-row py-2">
-                  <Text className="text-light-300 text-sm w-24">
-                    Broadcast:
-                  </Text>
+                <View className="flex-row items-center py-2">
+                  <View className="bg-yellow-500/90 px-4 py-2 rounded-lg mr-3">
+                    <Text className="text-white text-sm font-bold">
+                      Broadcast:
+                    </Text>
+                  </View>
                   <Text className="text-white text-sm font-semibold flex-1">
                     {movie.broadcast}
                   </Text>
@@ -295,16 +324,20 @@ const Details = () => {
             <View className="mb-6">
               <Text className="text-white text-lg font-bold mb-3">Genre</Text>
               <View className="flex-row flex-wrap gap-2">
-                {movie.genres.map((genre, idx) => (
-                  <View
-                    key={idx}
-                    className="bg-accent/20 px-4 py-2 rounded-full"
-                  >
-                    <Text className="text-accent text-sm font-medium">
-                      {genre.name}
-                    </Text>
-                  </View>
-                ))}
+                {movie.genres.map((genre, idx) => {
+                  const genreConfig = getGenreConfig(genre.name)
+                  return (
+                    <View
+                      key={idx}
+                      className="px-4 py-2.5 rounded-lg"
+                      style={{ backgroundColor: genreConfig.color }}
+                    >
+                      <Text className="text-white text-sm font-bold">
+                        {genreConfig.emoji} {genre.name}
+                      </Text>
+                    </View>
+                  )
+                })}
               </View>
             </View>
           )}
