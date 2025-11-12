@@ -31,9 +31,9 @@ const Index = () => {
     return result.data
   })
 
-  const movies = moviesData || []
-
   const sections = useMemo(() => {
+    const movies = moviesData ?? []
+
     if (!movies.length) {
       return []
     }
@@ -149,7 +149,7 @@ const Index = () => {
         data: clampToSection(pickGenre(27)),
       },
     ]
-  }, [movies])
+  }, [moviesData])
 
   return (
     <View className="flex-1 bg-primary">

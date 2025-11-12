@@ -21,6 +21,7 @@ import { icons } from '@/constants/icons'
 import { images } from '@/constants/images'
 import { getGenreConfig } from '@/data/genres'
 import { fetchMovieDetails } from '@/services/api'
+import { useFavorites } from '@/contexts/FavoritesContext'
 import useFetch from '@/services/usefetch'
 
 // Component to fetch and display related item image
@@ -89,7 +90,8 @@ const Details = () => {
   const { width } = useWindowDimensions()
   const [showVideoModal, setShowVideoModal] = useState(false)
   const [imageHeight, setImageHeight] = useState<number | null>(null)
-  const [liked, setLiked] = useState(false)
+
+  const { isFavorite, toggleFavorite } = useFavorites()
 
   const { data: movie, loading } = useFetch(() =>
     fetchMovieDetails(id as string)
@@ -160,19 +162,45 @@ const Details = () => {
     return null
   }
 
-  const youtubeId =
-    movie?.trailer?.youtube_id ||
-    getYouTubeVideoId(movie?.trailer?.embed_url || null)
+    const youtubeId =
+      movie?.trailer?.youtube_id ||
+      getYouTubeVideoId(movie?.trailer?.embed_url || null)
 
-  // Build proper YouTube embed URL with all required parameters
-  const getYouTubeEmbedUrl = (videoId: string | null): string | null => {
-    if (!videoId) return null
-    return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(
-      'https://localhost'
-    )}`
-  }
+    // Build proper YouTube embed URL with all required parameters
+    const getYouTubeEmbedUrl = (videoId: string | null): string | null => {
+      if (!videoId) return null
+      return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(
+        'https://localhost'
+      )}`
+    }
 
-  const youtubeEmbedUrl = getYouTubeEmbedUrl(youtubeId)
+    const youtubeEmbedUrl = getYouTubeEmbedUrl(youtubeId)
+
+    const liked = movie ? isFavorite(movie.id) : false
+    const movieForSaving = movie
+      ? {
+          id: movie.id,
+          title: movie.title ?? '',
+          adult: movie.adult ?? false,
+          backdrop_path:
+            movie.backdrop_path ??
+            movie.poster_path ??
+            'https://placehold.co/600x400/1a1a1a/FFFFFF.png',
+          genre_ids: movie.genres?.map((genre) => genre.id) ?? [],
+          original_language: movie.original_language ?? 'ja',
+          original_title: movie.original_title ?? movie.title ?? '',
+          overview: movie.overview ?? '',
+          popularity: movie.popularity ?? 0,
+          poster_path:
+            movie.poster_path ??
+            movie.backdrop_path ??
+            'https://placehold.co/600x400/1a1a1a/FFFFFF.png',
+          release_date: movie.release_date ?? '',
+          video: movie.video ?? false,
+          vote_average: movie.vote_average ?? 0,
+          vote_count: movie.vote_count ?? 0,
+        } as Movie
+      : null
 
   return (
     <View className="bg-primary flex-1">
@@ -219,8 +247,13 @@ const Details = () => {
           {/* Like Button */}
           <TouchableOpacity
             className="absolute -bottom-10 right-6 z-20 items-center"
-            onPress={() => setLiked((prev) => !prev)}
+            onPress={() => {
+              if (movieForSaving) {
+                toggleFavorite(movieForSaving)
+              }
+            }}
             activeOpacity={0.85}
+            disabled={!movieForSaving}
             accessibilityRole="button"
             accessibilityLabel={liked ? 'Remove from liked' : 'Add to liked'}
           >

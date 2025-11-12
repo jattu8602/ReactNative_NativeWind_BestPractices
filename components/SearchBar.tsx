@@ -1,5 +1,5 @@
 import { forwardRef } from 'react'
-import { View, TextInput, Image, TextInputProps } from 'react-native'
+import { View, TextInput, Image } from 'react-native'
 
 import { icons } from '@/constants/icons'
 
