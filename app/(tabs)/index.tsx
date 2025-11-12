@@ -108,6 +108,46 @@ const Index = () => {
         title: 'Romance Stories',
         data: clampToSection(pickGenre(22)),
       },
+      {
+        key: 'scifi',
+        title: 'Sci-Fi Adventures',
+        data: clampToSection(pickGenre(24)),
+      },
+      {
+        key: 'comedy',
+        title: 'Comedy Relief',
+        data: clampToSection(pickGenre(4)),
+      },
+      {
+        key: 'drama',
+        title: 'Drama & Feels',
+        data: clampToSection(pickGenre(8)),
+      },
+      {
+        key: 'sliceOfLife',
+        title: 'Slice of Life Vibes',
+        data: clampToSection(pickGenre(34)),
+      },
+      {
+        key: 'sports',
+        title: 'Sports Highlights',
+        data: clampToSection(pickGenre(30)),
+      },
+      {
+        key: 'horror',
+        title: 'Horror Nights',
+        data: clampToSection(pickGenre(14)),
+      },
+      {
+        key: 'mecha',
+        title: 'Mecha Battles',
+        data: clampToSection(pickGenre(18)),
+      },
+      {
+        key: 'shounen',
+        title: 'Shounen Heroes',
+        data: clampToSection(pickGenre(27)),
+      },
     ]
   }, [movies])
 
