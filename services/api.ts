@@ -28,10 +28,17 @@ const mapJikanToAnime = (anime: any, index: number): Movie => {
   }
 }
 
-// Helper function to get popular anime
-const getPopularAnime = async (): Promise<Movie[]> => {
+const fetchTopAnimePage = async ({
+  page = 1,
+  limit = 20,
+}: {
+  page?: number
+  limit?: number
+}): Promise<{ data: Movie[]; hasMore: boolean }> => {
   try {
-    const response = await fetch(`${JIKAN_CONFIG.BASE_URL}/top/anime?limit=20`)
+    const response = await fetch(
+      `${JIKAN_CONFIG.BASE_URL}/top/anime?page=${page}&limit=${limit}`
+    )
 
     if (!response.ok) {
       throw new Error(`Failed to fetch anime: ${response.statusText}`)
@@ -40,16 +47,24 @@ const getPopularAnime = async (): Promise<Movie[]> => {
     const data = await response.json()
 
     if (data.data && Array.isArray(data.data)) {
-      return data.data.map((anime: any, idx: number) =>
-        mapJikanToAnime(anime, idx)
+      const mapped = data.data.map((anime: any, idx: number) =>
+        mapJikanToAnime(anime, idx + (page - 1) * limit)
       )
+      const hasMore = data.pagination?.has_next_page ?? false
+      return { data: mapped, hasMore }
     }
 
-    return []
+    return { data: [], hasMore: false }
   } catch (error) {
     console.error('Error fetching popular anime:', error)
-    return []
+    return { data: [], hasMore: false }
   }
+}
+
+// Helper function to get popular anime
+const getPopularAnime = async (): Promise<Movie[]> => {
+  const result = await fetchTopAnimePage({ page: 1, limit: 20 })
+  return result.data
 }
 
 export const fetchMovies = async ({
@@ -58,42 +73,41 @@ export const fetchMovies = async ({
 }: {
   query: string
   page?: number
-}): Promise<{ data: Movie[]; hasMore: boolean }> => {
-  try {
-    if (query) {
-      // Search for anime with pagination
-      const response = await fetch(
-        `${JIKAN_CONFIG.BASE_URL}/anime?q=${encodeURIComponent(
-          query
-        )}&limit=20&page=${page}`
-      )
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch anime: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-
-      if (data.data && Array.isArray(data.data)) {
-        const movies = data.data.map((anime: any, index: number) =>
-          mapJikanToAnime(anime, index)
+  }): Promise<{ data: Movie[]; hasMore: boolean }> => {
+    try {
+      if (query) {
+        // Search for anime with pagination
+        const response = await fetch(
+          `${JIKAN_CONFIG.BASE_URL}/anime?q=${encodeURIComponent(
+            query
+          )}&limit=20&page=${page}`
         )
-        // Check if there are more pages (pagination info from Jikan API)
-        const hasMore = data.pagination?.has_next_page || false
-        return { data: movies, hasMore }
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch anime: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+
+        if (data.data && Array.isArray(data.data)) {
+          const movies = data.data.map((anime: any, index: number) =>
+            mapJikanToAnime(anime, index)
+          )
+          // Check if there are more pages (pagination info from Jikan API)
+          const hasMore = data.pagination?.has_next_page || false
+          return { data: movies, hasMore }
+        }
+
+        return { data: [], hasMore: false }
       }
 
-      return { data: [], hasMore: false }
-    } else {
-      // Return popular anime when no query (no pagination for popular)
-      const popularAnime = await getPopularAnime()
-      return { data: popularAnime, hasMore: false }
+      // Return popular anime when no query (supporting pagination)
+      return await fetchTopAnimePage({ page, limit: 24 })
+    } catch (error) {
+      console.error('Error fetching anime:', error)
+      throw error
     }
-  } catch (error) {
-    console.error('Error fetching anime:', error)
-    throw error
   }
-}
 
 export const fetchMovieDetails = async (
   animeId: string

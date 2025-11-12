@@ -27,20 +27,21 @@ const Search = () => {
   const [hasMore, setHasMore] = useState(false)
   const searchInputRef = useRef<TextInput>(null)
 
+  const trimmedQuery = searchQuery.trim()
+  const isSearching = trimmedQuery.length > 0
+  const moviesCount = movies.length
+
   const handleSearch = (text: string) => {
     setSearchQuery(text)
     setPage(1)
     setMovies([])
+    setHasMore(false)
   }
 
   // Load movies function
   const loadMovies = useCallback(
     async (pageNum: number = 1, append: boolean = false) => {
-      if (!searchQuery.trim()) {
-        setMovies([])
-        setHasMore(false)
-        return
-      }
+      const query = trimmedQuery
 
       try {
         if (pageNum === 1) {
@@ -50,14 +51,19 @@ const Search = () => {
         }
         setError(null)
 
-        const result = await fetchMovies({ query: searchQuery, page: pageNum })
+        const result = await fetchMovies({ query, page: pageNum })
 
-        if (append) {
-          setMovies((prev) => [...prev, ...result.data])
-        } else {
-          setMovies(result.data)
-        }
+        setMovies((prev) => {
+          const nextList = append ? [...prev, ...result.data] : result.data
+          const uniqueMap = new Map<number, Movie>()
+          nextList.forEach((movie) => {
+            uniqueMap.set(movie.id, movie)
+          })
+          return Array.from(uniqueMap.values())
+        })
+
         setHasMore(result.hasMore)
+        setPage(pageNum)
       } catch (err) {
         setError(
           err instanceof Error ? err : new Error('An unknown error occurred')
@@ -67,17 +73,16 @@ const Search = () => {
         setLoadingMore(false)
       }
     },
-    [searchQuery]
+    [trimmedQuery]
   )
 
   // Load more when scrolling to end
   const handleLoadMore = useCallback(() => {
-    if (!loadingMore && hasMore && searchQuery.trim()) {
+    if (!loading && !loadingMore && hasMore && moviesCount > 0) {
       const nextPage = page + 1
-      setPage(nextPage)
       loadMovies(nextPage, true)
     }
-  }, [loadingMore, hasMore, searchQuery, page, loadMovies])
+  }, [loading, loadingMore, hasMore, moviesCount, page, loadMovies])
 
   // Auto-focus search input when screen comes into focus
   useFocusEffect(
@@ -94,12 +99,7 @@ const Search = () => {
   // Debounced search effect
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (searchQuery.trim()) {
-        loadMovies(1, false)
-      } else {
-        setMovies([])
-        setHasMore(false)
-      }
+      loadMovies(1, false)
     }, 500)
 
     return () => clearTimeout(timeoutId)
@@ -116,7 +116,7 @@ const Search = () => {
       <FlatList
         className="px-5"
         data={movies}
-        keyExtractor={(item, index) => `${item.id}-${index}`}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => <MovieDisplayCard {...item} />}
         numColumns={3}
         columnWrapperStyle={{
@@ -163,24 +163,28 @@ const Search = () => {
               </Text>
             )}
 
-            {!loading &&
-              !error &&
-              searchQuery.trim() &&
-              movies?.length! > 0 && (
-                <Text className="text-xl text-white font-bold">
-                  Search Results for{' '}
-                  <Text className="text-accent">{searchQuery}</Text>
+            {!error &&
+              (isSearching ? (
+                !loading && moviesCount > 0 ? (
+                  <Text className="text-xl text-white font-bold mt-2 mb-2">
+                    Search Results for{' '}
+                    <Text className="text-accent">{trimmedQuery}</Text>
+                  </Text>
+                ) : null
+              ) : (
+                <Text className="text-xl text-white font-bold mt-4 mb-2">
+                  You May Like
                 </Text>
-              )}
+              ))}
           </>
         }
         ListEmptyComponent={
           !loading && !error ? (
             <View className="mt-10 px-5">
               <Text className="text-center text-gray-500">
-                {searchQuery.trim()
+                {isSearching
                   ? 'No anime found'
-                  : 'Start typing to search for anime'}
+                  : 'No recommendations available right now'}
               </Text>
             </View>
           ) : null
