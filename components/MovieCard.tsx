@@ -3,23 +3,33 @@ import { Image, Text, TouchableOpacity, View } from 'react-native'
 
 import { icons } from '@/constants/icons'
 
+interface MovieCardProps extends Movie {
+  containerClassName?: string
+  imageClassName?: string
+}
+
 const MovieCard = ({
   id,
   poster_path,
   title,
   vote_average,
   release_date,
-}: Movie) => {
+  containerClassName,
+  imageClassName,
+}: MovieCardProps) => {
+  const containerClasses = containerClassName ?? 'w-[30%]'
+  const imageClasses = imageClassName ?? 'w-full h-52 rounded-lg'
+
   return (
     <Link href={`/movie/${id}`} asChild>
-      <TouchableOpacity className="w-[30%]">
+      <TouchableOpacity className={containerClasses}>
         <Image
           source={{
             uri: poster_path
               ? poster_path
               : 'https://placehold.co/600x400/1a1a1a/FFFFFF.png',
           }}
-          className="w-full h-52 rounded-lg"
+          className={imageClasses}
           resizeMode="cover"
         />
 
