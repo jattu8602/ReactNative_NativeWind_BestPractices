@@ -1,4 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient'
+import { Ionicons } from '@expo/vector-icons'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import {
@@ -85,9 +86,10 @@ const RelatedItemImage = ({ type, malId }: { type: string; malId: number }) => {
 const Details = () => {
   const router = useRouter()
   const { id } = useLocalSearchParams()
-  const { height, width } = useWindowDimensions()
+  const { width } = useWindowDimensions()
   const [showVideoModal, setShowVideoModal] = useState(false)
   const [imageHeight, setImageHeight] = useState<number | null>(null)
+  const [liked, setLiked] = useState(false)
 
   const { data: movie, loading } = useFetch(() =>
     fetchMovieDetails(id as string)
@@ -213,10 +215,36 @@ const Details = () => {
               <Text className="text-black text-xs font-bold">{movie.type}</Text>
             </View>
           )}
+
+          {/* Like Button */}
+          <TouchableOpacity
+            className="absolute -bottom-10 right-6 z-20 items-center"
+            onPress={() => setLiked((prev) => !prev)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={liked ? 'Remove from liked' : 'Add to liked'}
+          >
+            <View
+              className="w-16 h-16 rounded-full items-center justify-center bg-white/95 border border-black/5"
+              style={{
+                shadowColor: '#000',
+                shadowOpacity: 0.2,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 6 },
+                elevation: 10,
+              }}
+            >
+              <Ionicons
+                name={liked ? 'heart' : 'heart-outline'}
+                size={30}
+                color={liked ? '#ef4444' : '#111827'}
+              />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Main Content */}
-        <View className="px-5 pt-6 ">
+        <View className="px-5 pt-12">
           {/* Title and Info Overlay */}
           <View className="mb-6">
             <Text className="text-white text-4xl font-bold mb-2 tracking-wide">
